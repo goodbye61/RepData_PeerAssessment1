@@ -1,25 +1,246 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "CourseProject_#1"
+author: "Kim"
+date: "2017.7.27"
+output: html_document
 ---
 
-
-## Loading and preprocessing the data
-
+This is for Coursera Course Project 1. 
 
 
-## What is mean total number of steps taken per day?
+## Before the Instructions 
+
+1.First, load the data.
+
+```{r}
+data <- read.csv("activity.csv")
+str(data)
+```
+
+2. Processing for 'date' 
+
+```{r}
+data$date <- as.Date(data$date, format = "%Y-%m-%d")
+str(data)
+```
 
 
 
-## What is the average daily activity pattern?
+
+And then follow the instructions. 
+
+## What is mean total number of steps taken per day ? 
+
+1. The total number of steps taken per day.
+```{r}
+sum <- with(data, tapply(steps,date,sum,na.rm=TRUE))
+sum
+``` 
+
+2. Make a histogram of the total number of steps taken each day. 
+3. Calculate and report the mean and median of the total number of steps taken per day 
+
+```{r}
+hist(sum)
+abline(v = mean(sum), col = "red", lwd = 4)
+abline(v = median(sum), col = "blue", lwd = 4)
+``` 
+
+```{r, echo = FALSE}
+cat("Mean value: ", mean(sum))
+```
+
+```{r, echo= FALSE}
+cat("Median value: ", median(sum))
+```
+
+On the figure above, there are two vertical lines which stand for mean and median.
+Red line is for mean of sum, and blue line is for median of sum.DF
+
+
+
+
+## What is the average daily activity pattern ? 
+ 
+  1. Make a time series plot on every interval. 
+  
+```{r}
+avg <- with(data,tapply(steps,interval,mean,na.rm=TRUE))
+plot(row.names(avg),avg,type = 'l', lwd = 3)
+```
+  
+  
+  2. Which 5-minute interval on average across all the days in the dataset, 
+      contains the maximum numbers of step?
+
+```{r}
+cat("Time interval which has the maximum numbers of step : ", row.names(avg)[which.max(avg)])
+```
 
 
 
 ## Imputing missing values
 
+# What is 'imputation' ? 
+
+In statistics, imputation is the process of replacing missing data with      substituted values.  - Wikipedia 
+ 
+ 
+  1. Calculate and report the total number of missing values in the dataset
+  
+```{r} 
+cat("Total number of NAs: ", sum(sapply(data$steps, function(x) sum(length(which(is.na(x)))))))
+``` 
 
 
-## Are there differences in activity patterns between weekdays and weekends?
+  2. Devise a strategy for filling in all of the missing values in the dataset.
+     (could use the mean / median for that day, or the mean for that 5-minute
+     interval,etc.)
+    
+    -> I will impute the data with the mean for that 5-minute interval. 
+    
+    
+  3. Create a new dataset that is equal to the original dataset but with the missing
+     data filled in. 
+    
+
+```{r}
+
+avg_by_interval <- with(data,tapply(steps,interval,mean,na.rm =TRUE))
+num_of_rows <- dim(data)[1]  # the num of data. 
+ch <- data[c(1,3)]
+ch_date <- data[c(2)]
+s <- sapply(ch$steps, function(x) length(which(is.na(x))))
+names <- as.integer(names(avg_by_interval))
+
+z <- as.data.frame(avg_by_interval)
+z <- cbind(names,z) 
+
+ # 's' stands for indicating which one is 'NAs' 
+ # So , 's[i] == 1' means that we need to process on it. 
+
+for(i in 1:num_of_rows){
+   
+  if(s[i] == 1)
+  {
+    ch[i,1] <- subset(z$avg_by_interval , z$names == ch[i,2])
+  }
+  
+}
+
+
+ # In 'ch' , steps & interval are configurated. 
+ # Merging date and 'ch' 
+
+
+mrg <- cbind(ch,ch_date)  # Mrg indicates the new dataset with the missing data 
+                          # filled in. 
+
+
+```
+
+<br>
+
+  4. Make a histogram based on the new dataset.(mrg) 
+     What is the impact of imputing missing data on the estimates of the total 
+     daily number of steps?
+
+```{r}
+# new dataset : mrg 
+s <- with(mrg, tapply(steps,date,sum,na.rm=TRUE))
+hist(s)
+``` 
+
+```{r} 
+cat("Mean: ", mean(s))
+``` 
+```{r}
+cat("Median: ", median(s))
+```
+
+
+ As shown above, histogram is different from first one. 
+ By imputing the data, we could get more 'gaussian-likely' form.
+ Because we got more data by substituting NAs with real values. 
+ The more we get N, density will go to the normal based on statistical reason. 
+
+ Also, by imputing, I could extract same values with mean and median. 
+
+<br>
+
+## Are there differences in activity patterns between weekdays and weekends? 
+
+```{r}
+mrg$days <- weekdays(mrg$date) # Adding new column indicating days. 
+head(mrg)
+```
+
+Make 2 dataset. 
+One for weekdays and the other for weekends. 
+
+ 1. Create a new factor variable in the dataset with two levels- 
+    "weekday" and "weekend" indicating whether a given date is a weekday or weekend.
+     <br>
+     NOTICE: 
+     MY R OUTPUT ENVIRONMENT IS BASED ON 'KOREAN'. 
+     I COULDN'T CHANGE MY ENVIRIONMENT ALTHOUGH I TRIED SEVERAL TRIALS. 
+      
+     配夸老: Saturday 
+     老夸老: Sunday 
+     
+     <br> 
+     
+```{r}
+
+w <- factor()
+
+for(i in 1:dim(mrg)[1]){
+
+if(mrg[i,]$days =="配夸老" | mrg[i,]$days=="老夸老"){
+  w <- rbind(w,"weekend")
+}else{
+  w <- rbind(w,"weekday") 
+}
+}
+
+mrg <- cbind(mrg,w) # mrg contains 'weekdays' column ! 
+
+
+``` 
+ 
+  <br> 
+ 
+  2. Make panel plot containing a time series plot of the 5-minute interval.
+     I'll use 'aggregate' function. 
+
+```{r}
+
+# Using aggregate function 
+
+avg_by_sw <- aggregate(steps ~ interval + w , data = mrg , mean) 
+library(lattice)
+
+xyplot(steps~ interval | w, data = avg_by_sw , type = 'l',  lwd = 2, layout = c(2,1), xlab = "Interval with every 5-minutes", ylab ="Mean of Steps", main =  "Steps ~ Interval", panel = function(x,y,...){
+  
+panel.abline(h = mean(y), col = "red", lwd = 3)
+panel.xyplot(x,y,...)
+  
+})
+
+```
+ <br> 
+ 
+  The red horizontal line indicates mean of each steps of given time interval. 
+  In general,as shown above, people walk more on weekends. 
+  
+
+
+
+
+
+
+
+
+ 
+ 
+ 
