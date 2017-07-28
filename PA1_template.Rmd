@@ -3,6 +3,7 @@ title: "CourseProject_#1"
 author: "Kim"
 date: "2017.7.27"
 output: html_document
+
 ---
 
 This is for Coursera Course Project 1. 
